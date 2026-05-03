@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* ── DARK (default) ── */
+:root {
+  --bg:          #111110;
+  --bg-card:     #1c1c1a;
+  --bg-input:    #242422;
+  --border:      rgba(255,255,255,0.09);
+  --border-hi:   rgba(255,255,255,0.18);
+  --text-1:      #eeecea;
+  --text-2:      #9b9994;
+  --text-3:      #5a5855;
+  --accent:      #f59e0b;
+  --accent-hi:   #fbbf24;
+  --accent-lo:   #d97706;
+  --accent-fg:   #111110;
+}
+
+/* ── LIGHT ── */
+[data-theme="light"] {
+  --bg:          #f6f5f1;
+  --bg-card:     #ffffff;
+  --bg-input:    #f9f8f5;
+  --border:      rgba(0,0,0,0.09);
+  --border-hi:   rgba(0,0,0,0.18);
+  --text-1:      #1c1b18;
+  --text-2:      #706e6a;
+  --text-3:      #a09e9a;
+  --accent:      #d97706;
+  --accent-hi:   #f59e0b;
+  --accent-lo:   #b45309;
+  --accent-fg:   #ffffff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-font-smoothing: antialiased; }
+
+body {
+  background-color: var(--bg);
+  color: var(--text-1);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100dvh;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+input, button, select, textarea { font-family: inherit; }
+
+input::placeholder { color: var(--text-3); }
+
+::selection { background: rgba(245,158,11,0.2); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 99px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
