@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { incomeAPI } from "../api/services";
 import { useFetch } from "../hooks/useFetch";
 import Modal from "../components/shared/Modal";
@@ -44,8 +44,18 @@ const SOURCE_COLORS = {
 
 const EMPTY_FORM = { amount: "", source: "Salary", description: "", date: "" };
 
-// ── Sub-components ────────────────────────────────────
+// ── Responsive hook ───────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
 
+// ── PageHeader ────────────────────────────────────────
 function PageHeader({ onAdd }) {
   return (
     <div
@@ -83,7 +93,8 @@ function PageHeader({ onAdd }) {
   );
 }
 
-function SummaryBar({ data }) {
+// ── SummaryBar ────────────────────────────────────────
+function SummaryBar({ data, width }) {
   const thisMonth = useMemo(() => {
     const now = new Date();
     return data
@@ -98,7 +109,6 @@ function SummaryBar({ data }) {
   }, [data]);
 
   const total = data.reduce((s, e) => s + e.amount, 0);
-
   const topSource = useMemo(() => {
     const map = {};
     data.forEach((e) => {
@@ -145,7 +155,7 @@ function SummaryBar({ data }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: width < 640 ? "1fr 1fr" : "repeat(4, 1fr)",
         gap: 10,
         marginBottom: 20,
       }}
@@ -179,6 +189,7 @@ function SummaryBar({ data }) {
   );
 }
 
+// ── Filters ───────────────────────────────────────────
 function Filters({
   search,
   setSearch,
@@ -188,6 +199,7 @@ function Filters({
   setDateFrom,
   dateTo,
   setDateTo,
+  width,
 }) {
   return (
     <div
@@ -200,7 +212,7 @@ function Filters({
       }}
     >
       {/* Search */}
-      <div style={{ position: "relative", flex: "1 1 200px", minWidth: 180 }}>
+      <div style={{ position: "relative", flex: "1 1 180px", minWidth: 160 }}>
         <Search
           size={13}
           style={{
@@ -229,7 +241,7 @@ function Filters({
             outline: "none",
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = "var(--accent)";
+            e.target.style.borderColor = "#22c55e";
           }}
           onBlur={(e) => {
             e.target.style.borderColor = "var(--border)";
@@ -276,78 +288,81 @@ function Filters({
         </select>
       </div>
 
-      {/* Date range */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <Calendar size={13} color="var(--text-3)" style={{ flexShrink: 0 }} />
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          style={{
-            height: 36,
-            padding: "0 10px",
-            fontSize: 13,
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-input)",
-            color: "var(--text-1)",
-            outline: "none",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "var(--accent)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "var(--border)";
-          }}
-        />
-        <span style={{ fontSize: 12, color: "var(--text-3)" }}>to</span>
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          style={{
-            height: 36,
-            padding: "0 10px",
-            fontSize: 13,
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-input)",
-            color: "var(--text-1)",
-            outline: "none",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "var(--accent)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "var(--border)";
-          }}
-        />
-        {(dateFrom || dateTo) && (
-          <button
-            onClick={() => {
-              setDateFrom("");
-              setDateTo("");
-            }}
+      {/* Date range — hidden on mobile */}
+      {width >= 640 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Calendar size={13} color="var(--text-3)" style={{ flexShrink: 0 }} />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
             style={{
               height: 36,
               padding: "0 10px",
-              fontSize: 12,
+              fontSize: 13,
               borderRadius: 8,
               border: "1px solid var(--border)",
-              background: "transparent",
-              color: "var(--text-3)",
-              cursor: "pointer",
+              background: "var(--bg-input)",
+              color: "var(--text-1)",
+              outline: "none",
             }}
-          >
-            Clear
-          </button>
-        )}
-      </div>
+            onFocus={(e) => {
+              e.target.style.borderColor = "#22c55e";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--border)";
+            }}
+          />
+          <span style={{ fontSize: 12, color: "var(--text-3)" }}>to</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            style={{
+              height: 36,
+              padding: "0 10px",
+              fontSize: 13,
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--bg-input)",
+              color: "var(--text-1)",
+              outline: "none",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#22c55e";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--border)";
+            }}
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              style={{
+                height: 36,
+                padding: "0 10px",
+                fontSize: 12,
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--text-3)",
+                cursor: "pointer",
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function IncomeTable({ data, onEdit, onDelete, deleting }) {
+// ── IncomeTable ───────────────────────────────────────
+function IncomeTable({ data, onEdit, onDelete, deleting, width }) {
   if (!data.length) {
     return (
       <div
@@ -374,6 +389,157 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
     );
   }
 
+  // ── Mobile card list ──
+  if (width < 768) {
+    return (
+      <div
+        style={{
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        {data.map((inc, i) => {
+          const srcColor = SOURCE_COLORS[inc.source] || "#9ca3af";
+          return (
+            <div
+              key={inc._id}
+              style={{
+                padding: "14px 16px",
+                borderBottom:
+                  i < data.length - 1 ? "1px solid var(--border)" : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 500,
+                      color: srcColor,
+                      background: `${srcColor}15`,
+                      padding: "2px 8px",
+                      borderRadius: 99,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {inc.source}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+                    {new Date(inc.date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                <p
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 500,
+                    color: "var(--text-1)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {inc.description || "—"}
+                </p>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{ fontSize: 14, fontWeight: 700, color: "#22c55e" }}
+                >
+                  +₹{inc.amount.toLocaleString("en-IN")}
+                </span>
+                <button
+                  onClick={() => onEdit(inc)}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 7,
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--text-3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => onDelete(inc._id)}
+                  disabled={deleting === inc._id}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 7,
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--text-3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: deleting === inc._id ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {deleting === inc._id ? (
+                    <Spinner size={12} />
+                  ) : (
+                    <Trash2 size={12} />
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "11px 16px",
+            background: "var(--bg-input)",
+            borderTop: "1px solid var(--border)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}
+          >
+            {data.length} {data.length === 1 ? "entry" : "entries"}
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#22c55e" }}>
+            +₹{data.reduce((s, e) => s + e.amount, 0).toLocaleString("en-IN")}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop table ──
   return (
     <div
       style={{
@@ -383,7 +549,7 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
         overflow: "hidden",
       }}
     >
-      {/* Header */}
+      {/* Head */}
       <div
         style={{
           display: "grid",
@@ -423,14 +589,13 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
               alignItems: "center",
               transition: "background 0.12s",
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = "var(--bg-input)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-input)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
           >
-            {/* Description */}
             <p
               style={{
                 fontSize: 13.5,
@@ -440,25 +605,19 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
             >
               {inc.description || "—"}
             </p>
-
-            {/* Source badge */}
-            <div>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: srcColor,
-                  background: `${srcColor}15`,
-                  padding: "3px 9px",
-                  borderRadius: 99,
-                  display: "inline-block",
-                }}
-              >
-                {inc.source}
-              </span>
-            </div>
-
-            {/* Date */}
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: srcColor,
+                background: `${srcColor}15`,
+                padding: "3px 9px",
+                borderRadius: 99,
+                display: "inline-block",
+              }}
+            >
+              {inc.source}
+            </span>
             <span style={{ fontSize: 13, color: "var(--text-2)" }}>
               {new Date(inc.date).toLocaleDateString("en-IN", {
                 day: "numeric",
@@ -466,13 +625,9 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
                 year: "numeric",
               })}
             </span>
-
-            {/* Amount */}
             <span style={{ fontSize: 14, fontWeight: 600, color: "#22c55e" }}>
               +₹{inc.amount.toLocaleString("en-IN")}
             </span>
-
-            {/* Actions */}
             <div
               style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}
             >
@@ -538,7 +693,7 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
         );
       })}
 
-      {/* Footer total */}
+      {/* Footer */}
       <div
         style={{
           display: "grid",
@@ -563,6 +718,21 @@ function IncomeTable({ data, onEdit, onDelete, deleting }) {
     </div>
   );
 }
+
+// ── IncomeForm ────────────────────────────────────────
+// inputStyle defined at module level — avoids "cannot create components during render"
+const inputStyle = (hasError) => ({
+  width: "100%",
+  height: 40,
+  padding: "0 12px",
+  fontSize: 14,
+  borderRadius: 9,
+  border: `1px solid ${hasError ? "#ef4444" : "var(--border)"}`,
+  background: "var(--bg-input)",
+  color: "var(--text-1)",
+  outline: "none",
+  transition: "border-color 0.15s, box-shadow 0.15s",
+});
 
 function IncomeForm({
   form,
@@ -611,19 +781,7 @@ function IncomeForm({
             value={form.amount}
             onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
             placeholder="0.00"
-            style={{
-              width: "100%",
-              height: 40,
-              paddingLeft: 28,
-              paddingRight: 12,
-              fontSize: 14,
-              borderRadius: 9,
-              border: `1px solid ${errors.amount ? "#ef4444" : "var(--border)"}`,
-              background: "var(--bg-input)",
-              color: "var(--text-1)",
-              outline: "none",
-              transition: "border-color 0.15s, box-shadow 0.15s",
-            }}
+            style={{ ...inputStyle(errors.amount), paddingLeft: 28 }}
             onFocus={(e) => {
               e.target.style.borderColor = "#22c55e";
               e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,0.12)";
@@ -659,18 +817,7 @@ function IncomeForm({
         <select
           value={form.source}
           onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
-          style={{
-            width: "100%",
-            height: 40,
-            padding: "0 12px",
-            fontSize: 14,
-            borderRadius: 9,
-            border: `1px solid ${errors.source ? "#ef4444" : "var(--border)"}`,
-            background: "var(--bg-input)",
-            color: "var(--text-1)",
-            outline: "none",
-            cursor: "pointer",
-          }}
+          style={{ ...inputStyle(errors.source), cursor: "pointer" }}
           onFocus={(e) => {
             e.target.style.borderColor = "#22c55e";
           }}
@@ -713,18 +860,7 @@ function IncomeForm({
             setForm((p) => ({ ...p, description: e.target.value }))
           }
           placeholder="e.g. Monthly salary, Client payment..."
-          style={{
-            width: "100%",
-            height: 40,
-            padding: "0 12px",
-            fontSize: 14,
-            borderRadius: 9,
-            border: "1px solid var(--border)",
-            background: "var(--bg-input)",
-            color: "var(--text-1)",
-            outline: "none",
-            transition: "border-color 0.15s, box-shadow 0.15s",
-          }}
+          style={inputStyle(false)}
           onFocus={(e) => {
             e.target.style.borderColor = "#22c55e";
             e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,0.12)";
@@ -754,18 +890,7 @@ function IncomeForm({
           value={form.date}
           max={today}
           onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-          style={{
-            width: "100%",
-            height: 40,
-            padding: "0 12px",
-            fontSize: 14,
-            borderRadius: 9,
-            border: `1px solid ${errors.date ? "#ef4444" : "var(--border)"}`,
-            background: "var(--bg-input)",
-            color: "var(--text-1)",
-            outline: "none",
-            transition: "border-color 0.15s",
-          }}
+          style={inputStyle(errors.date)}
           onFocus={(e) => {
             e.target.style.borderColor = "#22c55e";
           }}
@@ -819,6 +944,7 @@ export default function Income() {
     loading,
     refetch,
   } = useFetch(() => incomeAPI.getAll());
+  const width = useWindowWidth();
 
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -934,7 +1060,7 @@ export default function Income() {
         </div>
       ) : (
         <>
-          <SummaryBar data={raw || []} />
+          <SummaryBar data={raw || []} width={width} />
           <Filters
             search={search}
             setSearch={setSearch}
@@ -944,12 +1070,14 @@ export default function Income() {
             setDateFrom={setDateFrom}
             dateTo={dateTo}
             setDateTo={setDateTo}
+            width={width}
           />
           <IncomeTable
             data={data}
             onEdit={openEdit}
             onDelete={onDelete}
             deleting={deleting}
+            width={width}
           />
         </>
       )}

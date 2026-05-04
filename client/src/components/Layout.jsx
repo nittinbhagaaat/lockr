@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -17,6 +17,8 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon } from "lucide-react";
 import toast from "react-hot-toast";
+import { createAvatar } from "@dicebear/core";
+import { lorelei } from "@dicebear/collection";
 
 const NAV = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -27,6 +29,18 @@ const NAV = [
   { to: "/analytics", icon: BarChart2, label: "Analytics" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
+
+function Avatar({ seed = 'John Doe' }) {
+  const avatar = useMemo(() => {
+    return createAvatar(lorelei, {
+      seed,
+      size: 128,
+      // ... other options
+    }).toDataUri();
+  }, [seed]);
+
+  return <img src={avatar} alt="Avatar" />;
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -272,15 +286,7 @@ export default function Layout() {
                   flexShrink: 0,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--accent-fg)",
-                  }}
-                >
-                  {initials}
-                </span>
+                <Avatar seed={initials} />
               </div>
               <div style={{ overflow: "hidden" }}>
                 <p
@@ -462,15 +468,7 @@ export default function Layout() {
                 flexShrink: 0,
               }}
             >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--accent-fg)",
-                }}
-              >
-                {initials}
-              </span>
+              <Avatar seed={initials} />
             </div>
           </div>
         </header>

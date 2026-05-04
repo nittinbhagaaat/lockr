@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { goalAPI } from "../api/services";
 import { useFetch } from "../hooks/useFetch";
 import Modal from "../components/shared/Modal";
@@ -49,18 +49,39 @@ const STATUS_CONFIG = {
 // ── Helpers ───────────────────────────────────────────
 function daysLeft(deadline) {
   if (!deadline) return null;
-  const diff = Math.ceil(
-    (new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24),
-  );
-  return diff;
+  return Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24));
 }
 
 function fmt(n) {
   return `₹${(n || 0).toLocaleString("en-IN")}`;
 }
 
-// ── Sub-components ────────────────────────────────────
+// ── Responsive hook ───────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
 
+// ── inputStyle — module level (avoids render component error) ─
+const goalInputStyle = (hasError) => ({
+  width: "100%",
+  height: 40,
+  padding: "0 12px",
+  fontSize: 14,
+  borderRadius: 9,
+  border: `1px solid ${hasError ? "#ef4444" : "var(--border)"}`,
+  background: "var(--bg-input)",
+  color: "var(--text-1)",
+  outline: "none",
+  transition: "border-color 0.15s, box-shadow 0.15s",
+});
+
+// ── PageHeader ────────────────────────────────────────
 function PageHeader({ onAdd }) {
   return (
     <div
@@ -95,7 +116,8 @@ function PageHeader({ onAdd }) {
   );
 }
 
-function SummaryBar({ data }) {
+// ── SummaryBar ────────────────────────────────────────
+function SummaryBar({ data, width }) {
   const active = data.filter((g) => g.status === "active").length;
   const completed = data.filter((g) => g.status === "completed").length;
   const totalTarget = data.reduce((s, g) => s + (g.targetAmount || 0), 0);
@@ -112,7 +134,7 @@ function SummaryBar({ data }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: width < 640 ? "1fr 1fr" : "repeat(4, 1fr)",
         gap: 10,
         marginBottom: 24,
       }}
@@ -146,13 +168,15 @@ function SummaryBar({ data }) {
   );
 }
 
-function StatusTabs({ active, setActive }) {
+// ── StatusTabs ────────────────────────────────────────
+function StatusTabs({ active, setActive, width }) {
   const tabs = [
     { key: "all", label: "All" },
     { key: "active", label: "Active" },
     { key: "completed", label: "Completed" },
     { key: "abandoned", label: "Abandoned" },
   ];
+
   return (
     <div
       style={{
@@ -162,7 +186,8 @@ function StatusTabs({ active, setActive }) {
         background: "var(--bg-input)",
         padding: 4,
         borderRadius: 10,
-        width: "fit-content",
+        // Full width on mobile so tabs don't overflow
+        width: width < 480 ? "100%" : "fit-content",
       }}
     >
       {tabs.map((t) => (
@@ -170,16 +195,19 @@ function StatusTabs({ active, setActive }) {
           key={t.key}
           onClick={() => setActive(t.key)}
           style={{
+            // Equal flex on mobile so all 4 fit
+            flex: width < 480 ? 1 : "none",
             padding: "6px 14px",
             borderRadius: 7,
             border: "none",
-            fontSize: 13,
+            fontSize: width < 480 ? 12 : 13,
             fontWeight: active === t.key ? 600 : 400,
             cursor: "pointer",
             transition: "all 0.15s",
             background: active === t.key ? "var(--bg-card)" : "transparent",
             color: active === t.key ? "var(--text-1)" : "var(--text-3)",
             boxShadow: active === t.key ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+            whiteSpace: "nowrap",
           }}
         >
           {t.label}
@@ -189,6 +217,7 @@ function StatusTabs({ active, setActive }) {
   );
 }
 
+// ── GoalCard — already responsive via CSS grid auto-fill ──
 function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
   const pct = Math.min(
     Math.round(((goal.savedAmount || 0) / (goal.targetAmount || 1)) * 100),
@@ -201,9 +230,8 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
   const StatusIcon = status.icon;
 
   const deadlineLabel = () => {
-    if (!goal.deadline) return null;
-    if (goal.status === "completed") return null;
-    if (days === null) return null;
+    if (!goal.deadline || goal.status === "completed" || days === null)
+      return null;
     if (days < 0)
       return { text: `${Math.abs(days)}d overdue`, color: "#ef4444" };
     if (days === 0) return { text: "Due today!", color: "#f97316" };
@@ -226,10 +254,12 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
         opacity: goal.status === "abandoned" ? 0.65 : 1,
         transition: "box-shadow 0.15s",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)")
-      }
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = "none";
+      }}
     >
       {/* Top row */}
       <div
@@ -241,7 +271,6 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Status badge */}
           <div
             style={{
               display: "flex",
@@ -263,8 +292,7 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
                 borderRadius: 99,
               }}
             >
-              <StatusIcon size={10} />
-              {status.label}
+              <StatusIcon size={10} /> {status.label}
             </span>
             {dl && (
               <span
@@ -277,13 +305,11 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
                   gap: 3,
                 }}
               >
-                <CalendarDays size={10} />
-                {dl.text}
+                <CalendarDays size={10} /> {dl.text}
               </span>
             )}
           </div>
 
-          {/* Goal name */}
           <h3
             style={{
               fontSize: 15,
@@ -299,7 +325,6 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
             {goal.name}
           </h3>
 
-          {/* Description */}
           {goal.description && (
             <p
               style={{
@@ -317,7 +342,7 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
           )}
         </div>
 
-        {/* Action buttons */}
+        {/* Actions */}
         <div style={{ display: "flex", gap: 2, marginLeft: 8, flexShrink: 0 }}>
           <button
             onClick={() => onEdit(goal)}
@@ -418,18 +443,12 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
             of {fmt(goal.targetAmount)}
           </span>
         </div>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: barColor,
-          }}
-        >
+        <span style={{ fontSize: 13, fontWeight: 700, color: barColor }}>
           {pct}%
         </span>
       </div>
 
-      {/* Remaining + deadline row */}
+      {/* Remaining + deadline */}
       <div
         style={{
           display: "flex",
@@ -444,7 +463,6 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
             ? `${fmt(goal.targetAmount - goal.savedAmount)} remaining`
             : "🎉 Goal reached!"}
         </span>
-
         {goal.deadline && (
           <span
             style={{
@@ -465,7 +483,7 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
         )}
       </div>
 
-      {/* Status change row — only for active goals */}
+      {/* Status actions */}
       {goal.status === "active" && pct >= 100 && (
         <button
           onClick={() => onStatus(goal._id, "completed")}
@@ -486,12 +504,12 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
             justifyContent: "center",
             gap: 5,
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = "rgba(34,197,94,0.15)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = "rgba(34,197,94,0.08)")
-          }
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(34,197,94,0.15)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(34,197,94,0.08)";
+          }}
         >
           <CheckCircle2 size={13} /> Mark as Completed
         </button>
@@ -511,8 +529,12 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
             cursor: "pointer",
             transition: "color 0.15s",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#ef4444";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--text-3)";
+          }}
         >
           Abandon goal
         </button>
@@ -521,6 +543,7 @@ function GoalCard({ goal, onEdit, onDelete, onStatus, deleting }) {
   );
 }
 
+// ── GoalForm ──────────────────────────────────────────
 function GoalForm({
   form,
   setForm,
@@ -532,24 +555,11 @@ function GoalForm({
 }) {
   const today = new Date().toISOString().split("T")[0];
 
-  const inputStyle = (field) => ({
-    width: "100%",
-    height: 40,
-    padding: "0 12px",
-    fontSize: 14,
-    borderRadius: 9,
-    border: `1px solid ${errors[field] ? "#ef4444" : "var(--border)"}`,
-    background: "var(--bg-input)",
-    color: "var(--text-1)",
-    outline: "none",
-    transition: "border-color 0.15s, box-shadow 0.15s",
-  });
-
   const onFocus = (e) => {
     e.target.style.borderColor = "var(--accent)";
     e.target.style.boxShadow = "0 0 0 3px rgba(245,158,11,0.12)";
   };
-  const onBlur = (field) => (e) => {
+  const onBlurFor = (field) => (e) => {
     e.target.style.borderColor = errors[field] ? "#ef4444" : "var(--border)";
     e.target.style.boxShadow = "none";
   };
@@ -574,9 +584,9 @@ function GoalForm({
           value={form.name}
           onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
           placeholder="e.g. Buy a Laptop, Emergency Fund..."
-          style={inputStyle("name")}
+          style={goalInputStyle(errors.name)}
           onFocus={onFocus}
-          onBlur={onBlur("name")}
+          onBlur={onBlurFor("name")}
         />
         {errors.name && (
           <p style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>
@@ -621,9 +631,9 @@ function GoalForm({
               setForm((p) => ({ ...p, targetAmount: e.target.value }))
             }
             placeholder="0"
-            style={{ ...inputStyle("targetAmount"), paddingLeft: 28 }}
+            style={{ ...goalInputStyle(errors.targetAmount), paddingLeft: 28 }}
             onFocus={onFocus}
-            onBlur={onBlur("targetAmount")}
+            onBlur={onBlurFor("targetAmount")}
           />
         </div>
         {errors.targetAmount && (
@@ -716,13 +726,12 @@ function GoalForm({
           value={form.deadline}
           min={today}
           onChange={(e) => setForm((p) => ({ ...p, deadline: e.target.value }))}
-          style={inputStyle("deadline")}
+          style={goalInputStyle(errors.deadline)}
           onFocus={onFocus}
-          onBlur={onBlur("deadline")}
+          onBlur={onBlurFor("deadline")}
         />
       </div>
 
-      {/* Footer */}
       <div
         style={{
           display: "flex",
@@ -735,15 +744,14 @@ function GoalForm({
           Cancel
         </Button>
         <Button type="submit" loading={loading}>
-          <Target size={13} />
-          {isEdit ? "Save Changes" : "Create Goal"}
+          <Target size={13} /> {isEdit ? "Save Changes" : "Create Goal"}
         </Button>
       </div>
     </form>
   );
 }
 
-// ── Empty state ───────────────────────────────────────
+// ── EmptyGoals ────────────────────────────────────────
 function EmptyGoals({ onAdd }) {
   return (
     <div
@@ -778,6 +786,7 @@ function EmptyGoals({ onAdd }) {
 // ── Main Page ─────────────────────────────────────────
 export default function Goals() {
   const { data: raw = [], loading, refetch } = useFetch(() => goalAPI.getAll());
+  const width = useWindowWidth();
 
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -787,7 +796,6 @@ export default function Goals() {
   const [deleting, setDeleting] = useState(null);
   const [tab, setTab] = useState("all");
 
-  // ── Filtered by tab ──
   const data = useMemo(() => {
     if (tab === "all") return raw || [];
     return (raw || []).filter((g) => g.status === tab);
@@ -904,8 +912,8 @@ export default function Goals() {
         </div>
       ) : (
         <>
-          {(raw || []).length > 0 && <SummaryBar data={raw} />}
-          <StatusTabs active={tab} setActive={setTab} />
+          {(raw || []).length > 0 && <SummaryBar data={raw} width={width} />}
+          <StatusTabs active={tab} setActive={setTab} width={width} />
 
           {data.length === 0 && tab === "all" ? (
             <EmptyGoals onAdd={openAdd} />

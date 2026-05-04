@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { analyticsAPI } from "../api/services";
 import { useFetch } from "../hooks/useFetch";
@@ -14,9 +15,18 @@ import {
   Plus,
 } from "lucide-react";
 
-// ─────────────────────────────────────────────
-// Stat Card — compact, no wasted space
-// ─────────────────────────────────────────────
+// ── Responsive hook ───────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
+// ── StatCard ──────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color, sub }) {
   return (
     <div
@@ -79,9 +89,7 @@ function StatCard({ label, value, icon: Icon, color, sub }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// Transaction row
-// ─────────────────────────────────────────────
+// ── TxRow ─────────────────────────────────────────────
 function TxRow({ item }) {
   const isExpense = item.type === "expense";
   const isSaving = item.type === "saving";
@@ -152,9 +160,7 @@ function TxRow({ item }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// Goal progress row
-// ─────────────────────────────────────────────
+// ── GoalRow ───────────────────────────────────────────
 function GoalRow({ goal }) {
   const pct = Math.min(goal.progressPercent || 0, 100);
   const barColor =
@@ -183,7 +189,6 @@ function GoalRow({ goal }) {
           {pct}%
         </span>
       </div>
-      {/* Bar */}
       <div
         style={{
           height: 5,
@@ -215,9 +220,7 @@ function GoalRow({ goal }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// Section card wrapper
-// ─────────────────────────────────────────────
+// ── Section ───────────────────────────────────────────
 function Section({ title, linkLabel, onLink, children, minHeight = 0 }) {
   return (
     <div
@@ -267,9 +270,7 @@ function Section({ title, linkLabel, onLink, children, minHeight = 0 }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// Empty state — inline, compact
-// ─────────────────────────────────────────────
+// ── Blank ─────────────────────────────────────────────
 function Blank({ icon, text }) {
   return (
     <div
@@ -289,9 +290,7 @@ function Blank({ icon, text }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// Quick action button
-// ─────────────────────────────────────────────
+// ── QuickBtn ──────────────────────────────────────────
 function QuickBtn({ label, color, bgColor, onClick }) {
   return (
     <button
@@ -313,18 +312,19 @@ function QuickBtn({ label, color, bgColor, onClick }) {
       onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
       onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
     >
-      <Plus size={13} strokeWidth={2.5} />
-      {label}
+      <Plus size={13} strokeWidth={2.5} /> {label}
     </button>
   );
 }
 
-// ─────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────
+// ── MAIN ──────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const width = useWindowWidth();
+
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 900;
 
   const { data: summary, loading: l1 } = useFetch(() => analyticsAPI.summary());
   const { data: recent, loading: l2 } = useFetch(() =>
@@ -345,14 +345,16 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-
-  // Net balance color
   const net = summary?.netBalance || 0;
   const netColor = net >= 0 ? "#22c55e" : "#ef4444";
 
+  // ── Responsive column configs ──
+  const statsColumns = isMobile ? "1fr 1fr" : "repeat(3, 1fr)";
+  const bottomColumns = isMobile || isTablet ? "1fr" : "1fr 1fr 1fr";
+
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-      {/* ── Header row ── */}
+      {/* ── Header ── */}
       <div
         style={{
           display: "flex",
@@ -384,7 +386,6 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Quick actions */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <QuickBtn
             label="Expense"
@@ -407,7 +408,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Stat cards — 2 rows of 3 ── */}
+      {/* ── Stat cards ── */}
       {l1 ? (
         <div
           style={{
@@ -420,11 +421,11 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* Row 1 — money totals */}
+          {/* Row 1 */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: statsColumns,
               gap: 10,
               marginBottom: 10,
             }}
@@ -452,11 +453,11 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Row 2 — savings + goals + this month */}
+          {/* Row 2 */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: statsColumns,
               gap: 10,
               marginBottom: 20,
             }}
@@ -489,11 +490,11 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* ── Bottom sections — 3 columns ── */}
+      {/* ── Bottom sections ── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
+          gridTemplateColumns: bottomColumns,
           gap: 12,
         }}
       >
@@ -541,7 +542,7 @@ export default function Dashboard() {
           )}
         </Section>
 
-        {/* Monthly Spending */}
+        {/* Monthly Breakdown */}
         <Section
           title={`${new Date().toLocaleString("default", { month: "long" })} Breakdown`}
           linkLabel="Analytics"
@@ -619,16 +620,6 @@ export default function Dashboard() {
           )}
         </Section>
       </div>
-
-      {/* Responsive: stack to 1 col on small screens */}
-      <style>{`
-        @media (max-width: 900px) {
-          .dash-grid-3 { grid-template-columns: 1fr !important; }
-        }
-        @media (max-width: 640px) {
-          .dash-stats-row { grid-template-columns: 1fr 1fr !important; }
-        }
-      `}</style>
     </div>
   );
 }

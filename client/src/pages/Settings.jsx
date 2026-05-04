@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authAPI } from "../api/services";
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/shared/Button";
@@ -27,6 +27,17 @@ const THEMES = [
   { key: "light", label: "Light" },
   { key: "dark", label: "Dark" },
 ];
+
+// ── Responsive hook ───────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
 
 // ── Shared helpers ────────────────────────────────────
 function SectionCard({ title, subtitle, icon: Icon, children }) {
@@ -173,7 +184,7 @@ function Avatar({ name }) {
   );
 }
 
-// ── PasswordField — TOP LEVEL (outside SecuritySection) ──────────────
+// ── PasswordField — module level ──────────────────────
 function PasswordField({
   fieldKey,
   label,
@@ -222,7 +233,7 @@ function PasswordField({
 }
 
 // ── ProfileSection ────────────────────────────────────
-function ProfileSection({ user, onUpdate }) {
+function ProfileSection({ user, onUpdate, width }) {
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [errors, setErrors] = useState({});
@@ -241,18 +252,16 @@ function ProfileSection({ user, onUpdate }) {
     e.preventDefault();
     if (!validate()) return;
     setSaving(true);
-
     try {
       const { data } = await authAPI.updateMe({
         name: name.trim(),
         email: email.trim(),
       });
-      toast.success("Profile updated ✓"); // ← move toast BEFORE onUpdate
+      toast.success("Profile updated ✓");
       try {
         onUpdate({ ...data, token: user?.token ?? "" });
-      } catch (e) {
-        // context update failed silently — DB already saved, toast already shown
-        console.log(e);
+      } catch (err) {
+        console.log(err);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update profile");
@@ -267,10 +276,13 @@ function ProfileSection({ user, onUpdate }) {
       subtitle="Your name and email address"
       icon={User}
     >
+      {/* Avatar preview */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          // Stack vertically on very small screens
+          flexDirection: width < 480 ? "column" : "row",
+          alignItems: width < 480 ? "flex-start" : "center",
           gap: 16,
           marginBottom: 20,
           padding: "12px 16px",
@@ -300,8 +312,13 @@ function ProfileSection({ user, onUpdate }) {
       </div>
 
       <form onSubmit={onSubmit} noValidate>
+        {/* 2-col on ≥480, stacked on mobile */}
         <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: width < 480 ? "1fr" : "1fr 1fr",
+            gap: 14,
+          }}
         >
           <Field label="Full Name" error={errors.name}>
             <Input
@@ -335,7 +352,7 @@ function ProfileSection({ user, onUpdate }) {
 }
 
 // ── PreferencesSection ────────────────────────────────
-function PreferencesSection({ user, onUpdate }) {
+function PreferencesSection({ user, onUpdate, width }) {
   const [currency, setCurrency] = useState(user?.currency || "INR");
   const [theme, setTheme] = useState(
     () => localStorage.getItem("lockr-theme") || "system",
@@ -348,25 +365,24 @@ function PreferencesSection({ user, onUpdate }) {
     try {
       const { data } = await authAPI.updateMe({ currency });
 
-      // Apply theme BEFORE onUpdate so it never gets blocked
       const root = document.documentElement;
       if (theme === "system") {
-        const isDark = window.matchMedia(
-          "(prefers-color-scheme: dark)",
-        ).matches;
-        root.setAttribute("data-theme", isDark ? "dark" : "light");
+        root.setAttribute(
+          "data-theme",
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light",
+        );
       } else {
         root.setAttribute("data-theme", theme);
       }
       localStorage.setItem("lockr-theme", theme);
 
-      toast.success("Preferences saved ✓"); // ← before onUpdate
-
+      toast.success("Preferences saved ✓");
       try {
         onUpdate({ ...data, token: user?.token ?? "" });
-      } catch (e) {
-        // DB saved, theme applied, toast shown — silent fail on context
-        console.log(e);
+      } catch (err) {
+        console.log(err);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save preferences");
@@ -382,10 +398,11 @@ function PreferencesSection({ user, onUpdate }) {
       icon={Palette}
     >
       <form onSubmit={onSubmit} noValidate>
+        {/* 2-col on ≥480, stacked on mobile */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: width < 480 ? "1fr" : "1fr 1fr",
             gap: 14,
             marginBottom: 16,
           }}
@@ -476,7 +493,7 @@ function PreferencesSection({ user, onUpdate }) {
 }
 
 // ── SecuritySection ───────────────────────────────────
-function SecuritySection() {
+function SecuritySection({ width }) {
   const [form, setForm] = useState({ current: "", newPass: "", confirm: "" });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -539,7 +556,6 @@ function SecuritySection() {
         : strength >= 2
           ? "#f97316"
           : "#ef4444";
-
   const strengthLabel =
     strength >= 4
       ? "Strong"
@@ -567,8 +583,13 @@ function SecuritySection() {
           setShow={setShow}
         />
 
+        {/* 2-col on ≥480, stacked on mobile */}
         <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: width < 480 ? "1fr" : "1fr 1fr",
+            gap: 14,
+          }}
         >
           <PasswordField
             fieldKey="newPass"
@@ -697,6 +718,7 @@ function DangerZone({ onLogout }) {
 // ── Main Page ─────────────────────────────────────────
 export default function Settings() {
   const { user, setUser, logout } = useAuth();
+  const width = useWindowWidth();
 
   return (
     <div style={{ maxWidth: 740, margin: "0 auto" }}>
@@ -716,9 +738,13 @@ export default function Settings() {
         </p>
       </div>
 
-      <ProfileSection user={user} onUpdate={(u) => setUser(u)} />
-      <PreferencesSection user={user} onUpdate={(u) => setUser(u)} />
-      <SecuritySection />
+      <ProfileSection user={user} onUpdate={(u) => setUser(u)} width={width} />
+      <PreferencesSection
+        user={user}
+        onUpdate={(u) => setUser(u)}
+        width={width}
+      />
+      <SecuritySection width={width} />
       <DangerZone onLogout={logout} />
     </div>
   );
